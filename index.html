@@ -861,7 +861,11 @@ function copyUrl() {
     .then(() => showToast('URL copied'));
 }
 
-function openMemo() { location.href = document.getElementById('generated-url').textContent; }
+function openMemo() {
+  const url = document.getElementById('generated-url').textContent;
+  const hash = url.split('#')[1];
+  if (hash) loadMemo(hash);
+}
 
 function newMemo() {
   if (burnTimer) clearInterval(burnTimer);
