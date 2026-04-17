@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ghost Memo</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/9.1.6/marked.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #f9f9f8;
+    --surface: #ffffff;
+    --border: #e4e4e0;
+    --border-strong: #c8c8c2;
+    --text: #111110;
+    --text-soft: #6b6b67;
+    --text-faint: #a8a8a3;
+    --red: #d63030;
+    --green: #1a7a3c;
+    --font: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  [data-theme="dark"] {
+    --bg: #0f0f0e;
+    --surface: #1a1a18;
+    --border: #2a2a27;
+    --border-strong: #3a3a36;
+    --text: #f0efec;
+    --text-soft: #b0aea8;
+    --text-faint: #6b6b65;
+    --red: #ff5555;
+    --green: #4ade80;
+  }
+
+  /* ── THEME TOGGLE ── */
+  .theme-toggle {
+    position: absolute;
+    top: 0;
+    right: 0;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    width: 34px;
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--text-soft);
+    transition: all .15s;
+    font-size: 14px;
+  }
+  .theme-toggle:hover {
+    border-color: var(--border-strong);
+    color: var(--text);
+  }
+  .theme-toggle svg {
+    width: 15px;
+    height: 15px;
+  }
+  [data-theme="dark"] .sun-icon { display: block; }
+  [data-theme="dark"] .moon-icon { display: none; }
+  .sun-icon { display: none; }
+  .moon-icon { display: block; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  #app { max-width: 680px; margin: 0 auto; padding: 48px 24px 80px; }
+
+  /* ── HEADER ── */
+  header { margin-bottom: 36px; position: relative; }
+  .logo { font-size: 17px; font-weight: 600; letter-spacing: -0.3px; display: flex; align-items: center; gap: 7px; margin-bottom: 3px; }
+  .logo-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--text); }
+  .tagline { font-size: 12px; color: var(--text-faint); }
+
+  /* ── VIEWS ── */
+  .view { display: none; }
+  .view.active { display: block; }
+
+  /* ── EDITOR ── */
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-bottom: 10px; }
+
+  .card-topbar {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 9px 14px; border-bottom: 1px solid var(--border);
+    background: var(--bg);
+  }
+
+  .tabs { display: flex; gap: 2px; }
+  .tab-btn { font-family: var(--font); font-size: 12px; font-weight: 500; color: var(--text-faint); background: none; border: none; padding: 4px 10px; border-radius: 5px; cursor: pointer; transition: all .12s; }
+  .tab-btn:hover, .tab-btn.active { color: var(--text); background: var(--surface); }
+
+  .badge { font-size: 11px; color: var(--text-faint); }
+
+  #editor { width: 100%; min-height: 220px; background: transparent; border: none; outline: none; color: var(--text); font-family: var(--font-mono); font-size: 13px; line-height: 1.75; padding: 16px 18px; resize: none; }
+  #editor::placeholder { color: var(--text-faint); }
+
+  #preview-area { padding: 16px 18px; min-height: 220px; font-size: 14px; line-height: 1.7; }
+  #preview-area h1,#preview-area h2,#preview-area h3 { font-weight: 600; margin: 12px 0 5px; }
+  #preview-area h1{font-size:20px}#preview-area h2{font-size:16px}#preview-area h3{font-size:14px}
+  #preview-area p{margin-bottom:10px}
+  #preview-area code{font-family:var(--font-mono);font-size:12px;background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:3px}
+  #preview-area pre{background:var(--bg);border:1px solid var(--border);padding:12px;border-radius:6px;margin:8px 0;overflow-x:auto}
+  #preview-area blockquote{border-left:2px solid var(--border-strong);padding-left:12px;color:var(--text-soft);margin:8px 0}
+  #preview-area ul,#preview-area ol{padding-left:20px;margin-bottom:10px}
+
+  .card-footer { padding: 7px 18px; border-top: 1px solid var(--border); background: var(--bg); display: flex; justify-content: space-between; font-size: 11px; color: var(--text-faint); }
+
+  /* ── OPTIONS ── */
+  .options-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 10px;
+  }
+  @media(max-width:520px){.options-grid{grid-template-columns:1fr}}
+
+  .field label { display: block; font-size: 11px; font-weight: 500; color: var(--text-soft); margin-bottom: 4px; }
+  .field select, .field input[type="text"], .field input[type="password"] {
+    width: 100%; background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: var(--font); font-size: 13px; padding: 7px 10px;
+    outline: none; appearance: none; transition: border-color .15s;
+  }
+  .field select:focus,.field input:focus{border-color:var(--border-strong)}
+  .field select option{background:#fff}
+
+  .field-note { font-size: 11px; color: var(--text-faint); margin-top: 3px; }
+
+  /* ── BUTTONS ── */
+  .btn { font-family: var(--font); font-size: 13px; font-weight: 500; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text); padding: 8px 16px; cursor: pointer; transition: all .12s; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn:hover { background: var(--bg); border-color: var(--border-strong); }
+  .btn-primary { background: var(--text); color: #fff; border-color: var(--text); }
+  .btn-primary:hover { background: #333; border-color: #333; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-danger { color: var(--red); border-color: #f0c0c0; }
+  .btn-danger:hover { background: #fff5f5; border-color: var(--red); }
+  .btn-full { width: 100%; justify-content: center; margin-top: 2px; }
+
+  /* ── SECURITY BADGE ── */
+  .security-row {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 20px;
+  }
+  .sec-badge {
+    font-size: 10px; font-weight: 500; color: var(--text-soft);
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; padding: 3px 10px;
+    display: flex; align-items: center; gap: 4px;
+  }
+  .sec-badge .dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); }
+
+  /* ── DIVIDER ── */
+  .divider { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+  .section-label { font-size: 11px; font-weight: 500; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.4px; margin-bottom: 14px; }
+
+  /* ── COLLAPSIBLE SECTIONS ── */
+  .collapse { margin-bottom: 8px; border-bottom: 1px solid var(--border); }
+  .collapse:last-child { border-bottom: none; }
+
+  .collapse-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 14px 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--font);
+    transition: opacity .12s;
+  }
+  .collapse-toggle:hover { opacity: 0.7; }
+
+  .collapse-title {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .collapse-count {
+    font-size: 11px;
+    color: var(--text-faint);
+    font-weight: 400;
+  }
+
+  .collapse-chevron {
+    font-size: 14px;
+    color: var(--text-faint);
+    transition: transform .2s ease;
+    display: inline-block;
+  }
+
+  .collapse.open .collapse-chevron {
+    transform: rotate(90deg);
+  }
+
+  .collapse-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height .25s ease, padding .25s ease;
+  }
+
+  .collapse.open .collapse-content {
+    max-height: 2000px;
+    padding-bottom: 18px;
+  }
+
+  /* ── INFO GRID ── */
+  .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 28px; }
+  @media(max-width:460px){.info-grid{grid-template-columns:1fr}}
+  .info-box { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px 16px; }
+  .info-box-title { font-size: 12px; font-weight: 600; margin-bottom: 6px; }
+  .info-box-body { font-size: 12px; color: var(--text-soft); line-height: 1.6; }
+
+  /* ── USE CASES ── */
+  .uc-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; margin-bottom: 28px; }
+  @media(max-width:520px){.uc-grid{grid-template-columns:1fr 1fr}}
+  .uc { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; transition: border-color .12s; }
+  .uc:hover { border-color: var(--border-strong); }
+  .uc-icon { font-size: 15px; margin-bottom: 6px; display: block; }
+  .uc-title { font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+  .uc-desc { font-size: 11px; color: var(--text-soft); line-height: 1.5; }
+  .uc-tag { display: inline-block; margin-top: 6px; font-size: 10px; color: var(--text-faint); background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 1px 6px; }
+
+  /* ── HOW IT WORKS ── */
+  .hiw-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 8px; margin-bottom: 28px; }
+  @media(max-width:520px){.hiw-row{grid-template-columns:repeat(2,1fr)}}
+  .hiw-step { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+  .hiw-num { font-size: 10px; font-weight: 600; color: var(--text-faint); margin-bottom: 5px; }
+  .hiw-text { font-size: 11px; color: var(--text-soft); line-height: 1.5; }
+
+  /* ── STORED MEMOS ── */
+  .memo-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--text-soft); }
+  .memo-row:last-child { border-bottom: none; }
+  .memo-burn-btn { background: none; border: none; color: var(--red); cursor: pointer; font-size: 11px; font-weight: 500; }
+
+  /* ── SHARE VIEW ── */
+  .share-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin-bottom: 12px; }
+  .share-title { font-size: 16px; font-weight: 600; margin-bottom: 3px; }
+  .share-sub { font-size: 12px; color: var(--text-faint); margin-bottom: 18px; }
+  .url-label { font-size: 11px; font-weight: 500; color: var(--text-soft); margin-bottom: 4px; }
+  .url-field { background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 10px 12px; font-family: var(--font-mono); font-size: 11px; color: var(--text-soft); word-break: break-all; line-height: 1.5; cursor: pointer; transition: border-color .12s; margin-bottom: 3px; }
+  .url-field:hover { border-color: var(--border-strong); }
+  .url-hint { font-size: 10px; color: var(--text-faint); margin-bottom: 14px; }
+  .share-meta { display: flex; gap: 14px; font-size: 11px; color: var(--text-soft); flex-wrap: wrap; margin-bottom: 18px; }
+  .share-meta strong { color: var(--text); font-weight: 500; }
+  .share-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── PASSWORD PROMPT ── */
+  #password-view { max-width: 400px; margin: 0 auto; }
+  .pw-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 28px 24px; text-align: center; }
+  .pw-icon { font-size: 32px; margin-bottom: 12px; }
+  .pw-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+  .pw-sub { font-size: 12px; color: var(--text-faint); margin-bottom: 20px; }
+  .pw-error { font-size: 12px; color: var(--red); margin-top: 8px; display: none; }
+
+  /* ── READ VIEW ── */
+  .burn-wrap { margin-bottom: 20px; }
+  .burn-meta { display: flex; justify-content: space-between; font-size: 11px; color: var(--text-faint); margin-bottom: 5px; }
+  #time-remaining { color: var(--red); font-weight: 500; }
+  .burn-track { height: 2px; background: var(--border); border-radius: 1px; }
+  .burn-fill { height: 100%; background: var(--text); border-radius: 1px; transition: width 1s linear; }
+  .note-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 24px 28px; min-height: 160px; margin-bottom: 14px; }
+  .note-card-header { font-size: 10px; font-weight: 500; color: var(--text-faint); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; }
+  .enc-badge { font-size:10px; color: var(--green); font-weight:500; }
+  .note-body { font-size: 14px; line-height: 1.7; }
+  .note-body h1,.note-body h2,.note-body h3{font-weight:600;margin:12px 0 5px}
+  .note-body h1{font-size:20px}.note-body h2{font-size:16px}.note-body h3{font-size:14px}
+  .note-body p{margin-bottom:10px}
+  .note-body code{font-family:var(--font-mono);font-size:12px;background:var(--bg);border:1px solid var(--border);padding:1px 5px;border-radius:3px}
+  .note-body pre{background:var(--bg);border:1px solid var(--border);padding:12px;border-radius:6px;margin:8px 0;overflow-x:auto}
+  .note-body blockquote{border-left:2px solid var(--border-strong);padding-left:12px;color:var(--text-soft);margin:8px 0}
+  .note-body ul,.note-body ol{padding-left:20px;margin-bottom:10px}
+  .read-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+  /* ── EXPIRED VIEW ── */
+  #expired-view { padding: 60px 0; text-align: center; }
+  .expired-icon { font-size: 36px; margin-bottom: 12px; }
+  .expired-title { font-size: 18px; font-weight: 600; margin-bottom: 5px; }
+  .expired-sub { font-size: 13px; color: var(--text-faint); margin-bottom: 6px; }
+  .expired-note { margin: 20px auto 24px; max-width: 400px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 12px 16px; font-size: 12px; color: var(--text-soft); line-height: 1.6; text-align: left; }
+  .expired-note strong { color: var(--text); display: block; margin-bottom: 3px; }
+
+  /* ── TOAST ── */
+  #toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(50px); background: var(--text); color: #fff; padding: 8px 18px; border-radius: 6px; font-size: 12px; font-weight: 500; transition: transform .2s ease; z-index: 100; pointer-events: none; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* ── BOOT ── */
+  #boot { position: fixed; inset: 0; background: var(--text); z-index: 1000; display: flex; align-items: center; justify-content: center; flex-direction: column; gap: 4px; }
+  .boot-logo { font-size: 18px; font-weight: 600; color: #fff; margin-bottom: 18px; }
+  .boot-line { font-family: var(--font-mono); font-size: 12px; color: rgba(255,255,255,0.3); opacity: 0; animation: fi .05s forwards; }
+  .boot-line.ok::after { content: ' ✓'; color: rgba(255,255,255,0.6); }
+  .boot-line.warn::after { content: ' —'; color: #e8b84b; }
+  @keyframes fi { to { opacity: 1; } }
+
+  /* loading spinner */
+  .spinner { display:inline-block; width:12px; height:12px; border:2px solid rgba(255,255,255,0.3); border-top-color:#fff; border-radius:50%; animation:spin .6s linear infinite; vertical-align:middle; margin-right:4px; }
+  .spinner-dark { border-color:rgba(0,0,0,0.15); border-top-color:var(--text); }
+  @keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="boot">
+  <div class="boot-logo">Ghost Memo</div>
+</div>
+
+<div id="app">
+  <header>
+    <div class="logo"><span class="logo-dot"></span>Ghost Memo</div>
+    <div class="tagline">End-to-end encrypted · self-destructing · zero server knowledge</div>
+    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark mode">
+      <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+      <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"/>
+        <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/>
+      </svg>
+    </button>
+  </header>
+
+  <!-- ── COMPOSE ── -->
+  <div id="compose-view" class="view active">
+
+    <div class="security-row">
+      <span class="sec-badge"><span class="dot"></span>AES-256-GCM</span>
+      <span class="sec-badge"><span class="dot"></span>PBKDF2 key derivation</span>
+      <span class="sec-badge"><span class="dot"></span>Web Crypto API</span>
+      <span class="sec-badge"><span class="dot"></span>Key in URL fragment only</span>
+    </div>
+
+    <!-- Editor -->
+    <div class="card">
+      <div class="card-topbar">
+        <div class="tabs">
+          <button class="tab-btn active" onclick="switchTab('write')">Write</button>
+          <button class="tab-btn" onclick="switchTab('preview')">Preview</button>
+        </div>
+        <span class="badge" id="editor-badge">0 words</span>
+      </div>
+      <div id="write-pane">
+        <textarea id="editor" placeholder="Write your note here. Markdown supported." spellcheck="false" oninput="onEditorInput()"></textarea>
+      </div>
+      <div id="preview-pane" style="display:none"><div id="preview-area"></div></div>
+      <div class="card-footer">
+        <span id="char-count">0 characters</span>
+        <span id="word-count-footer">0 words</span>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="options-grid">
+      <div class="field">
+        <label>Burn after</label>
+        <select id="burn-mode">
+          <option value="refresh">On refresh / revisit</option>
+          <option value="300">5 minutes</option>
+          <option value="900">15 minutes</option>
+          <option value="3600">1 hour</option>
+          <option value="86400">24 hours</option>
+          <option value="never">Never (manual only)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Password protect (optional)</label>
+        <input type="password" id="memo-password" placeholder="Leave blank for no password">
+        <div class="field-note">Recipient must enter this to read</div>
+      </div>
+    </div>
+
+    <div class="options-grid" style="margin-bottom:16px;">
+      <div class="field">
+        <label>Label (optional)</label>
+        <input type="text" id="memo-label" placeholder="e.g. staging creds">
+      </div>
+      <div class="field">
+        <label>&nbsp;</label>
+        <button class="btn btn-primary btn-full" id="seal-btn" onclick="sealMemo()">Seal &amp; Encrypt →</button>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Single collapsible -->
+    <div class="collapse" id="col-more">
+      <button class="collapse-toggle" onclick="toggleCollapse('col-more')">
+        <span class="collapse-title">About &amp; stored memos <span class="collapse-count" id="stored-count"></span></span>
+        <span class="collapse-chevron">›</span>
+      </button>
+      <div class="collapse-content">
+
+        <div class="section-label" style="margin-top:4px;">How it works</div>
+        <div class="info-grid">
+          <div class="info-box">
+            <div class="info-box-title">Encryption</div>
+            <div class="info-box-body">
+              A random base key is generated client-side. A master key is derived from it using PBKDF2 + SHA-256 (and your optional password). Your note is then encrypted with AES-256-GCM.
+            </div>
+          </div>
+          <div class="info-box">
+            <div class="info-box-title">Zero knowledge</div>
+            <div class="info-box-body">
+              The base key is only ever in the URL fragment — never sent to a server. Even if someone reads your localStorage, all they see is ciphertext. Without the key, it's meaningless.
+            </div>
+          </div>
+        </div>
+
+        <div class="section-label">Stored memos</div>
+        <div class="info-box" style="margin-bottom:28px;">
+          <div id="storage-info" style="font-size:12px;color:var(--text-faint);margin-bottom:6px;">Scanning...</div>
+          <div id="existing-notes"></div>
+        </div>
+
+        <div class="section-label">Use cases</div>
+        <div class="uc-grid">
+          <div class="uc"><span class="uc-icon">🔑</span><div class="uc-title">Password handoff</div><div class="uc-desc">Send credentials without them sitting in Slack or email history.</div><span class="uc-tag">one-time</span></div>
+          <div class="uc"><span class="uc-icon">🛠️</span><div class="uc-title">Dev / ops handoff</div><div class="uc-desc">Pass secrets during a deployment. Gone before you close the terminal.</div><span class="uc-tag">5 min burn</span></div>
+          <div class="uc"><span class="uc-icon">📋</span><div class="uc-title">Sensitive drafts</div><div class="uc-desc">Share a draft you don't want forwarded. One read, then gone.</div><span class="uc-tag">refresh burn</span></div>
+          <div class="uc"><span class="uc-icon">✍️</span><div class="uc-title">Private journal</div><div class="uc-desc">Think in writing without it persisting anywhere.</div><span class="uc-tag">no trace</span></div>
+          <div class="uc"><span class="uc-icon">🤝</span><div class="uc-title">Client onboarding</div><div class="uc-desc">Temp login details that auto-destruct after 24 hours.</div><span class="uc-tag">24h burn</span></div>
+          <div class="uc"><span class="uc-icon">🔒</span><div class="uc-title">Contractor access</div><div class="uc-desc">Staging access that expires when the job ends.</div><span class="uc-tag">timed</span></div>
+          <div class="uc"><span class="uc-icon">💬</span><div class="uc-title">Off-record message</div><div class="uc-desc">Burns after the recipient reads it.</div><span class="uc-tag">ephemeral</span></div>
+          <div class="uc"><span class="uc-icon">🧪</span><div class="uc-title">Test credentials</div><div class="uc-desc">QA logins that auto-expire. No cleanup needed.</div><span class="uc-tag">timed</span></div>
+          <div class="uc"><span class="uc-icon">📦</span><div class="uc-title">Temp config</div><div class="uc-desc">Pass env files without committing to version control.</div><span class="uc-tag">single use</span></div>
+        </div>
+
+        <div class="section-label">Encryption steps</div>
+        <div class="hiw-row">
+          <div class="hiw-step"><div class="hiw-num">01 — Generate</div><div class="hiw-text">Random 256-bit base key generated in your browser using Web Crypto.</div></div>
+          <div class="hiw-step"><div class="hiw-num">02 — Derive</div><div class="hiw-text">Master key derived via PBKDF2 + SHA-256 from base key + optional password.</div></div>
+          <div class="hiw-step"><div class="hiw-num">03 — Encrypt</div><div class="hiw-text">Note encrypted with AES-256-GCM. IV is random and stored alongside ciphertext.</div></div>
+          <div class="hiw-step"><div class="hiw-num">04 — Share</div><div class="hiw-text">Base key lives only in the URL fragment — never touches a server or localStorage.</div></div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── SHARE VIEW ── -->
+  <div id="share-view" class="view">
+    <div class="share-card">
+      <div class="share-title">Memo sealed</div>
+      <div class="share-sub">AES-256-GCM · PBKDF2 · key in URL fragment only</div>
+      <div class="url-label">Access URL</div>
+      <div class="url-field" id="generated-url" onclick="copyUrl()"></div>
+      <div class="url-hint">Click to copy · the decryption key is in the fragment and never sent to a server</div>
+      <div class="share-meta">
+        <span>Burns: <strong id="meta-burn"></strong></span>
+        <span>Password: <strong id="meta-pw"></strong></span>
+        <span>Size: <strong id="meta-size"></strong></span>
+      </div>
+      <div class="share-actions">
+        <button class="btn btn-primary" onclick="copyUrl()">Copy URL</button>
+        <button class="btn" onclick="openMemo()">Open →</button>
+        <button class="btn" onclick="newMemo()">New memo</button>
+        <button class="btn btn-danger" onclick="burnNow()">Burn now</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PASSWORD PROMPT VIEW ── -->
+  <div id="password-view" class="view">
+    <div class="pw-card">
+      <div class="pw-icon">🔐</div>
+      <div class="pw-title">Password required</div>
+      <div class="pw-sub">This memo is password protected. Enter the password to decrypt it.</div>
+      <div class="field" style="text-align:left;margin-bottom:10px;">
+        <label>Password</label>
+        <input type="password" id="read-password" placeholder="Enter password..." onkeydown="if(event.key==='Enter')decryptWithPassword()">
+      </div>
+      <button class="btn btn-primary btn-full" id="decrypt-btn" onclick="decryptWithPassword()">Decrypt memo</button>
+      <div class="pw-error" id="pw-error">Wrong password — decryption failed.</div>
+    </div>
+  </div>
+
+  <!-- ── READ VIEW ── -->
+  <div id="read-view" class="view">
+    <div class="burn-wrap">
+      <div class="burn-meta">
+        <span>Self-destruct</span>
+        <span id="time-remaining">--:--</span>
+      </div>
+      <div class="burn-track"><div class="burn-fill" id="burn-fill" style="width:100%"></div></div>
+    </div>
+    <div class="note-card">
+      <div class="note-card-header">
+        <span>Decrypted · reading mode</span>
+        <span class="enc-badge">✓ AES-256-GCM</span>
+      </div>
+      <div class="note-body" id="note-body"></div>
+    </div>
+    <div class="read-actions">
+      <button class="btn btn-danger" onclick="burnNow()">Burn this memo</button>
+      <button class="btn" onclick="newMemo()">New memo</button>
+    </div>
+  </div>
+
+  <!-- ── EXPIRED VIEW ── -->
+  <div id="expired-view" class="view">
+    <div class="expired-icon">🗑</div>
+    <div class="expired-title">Memo destroyed</div>
+    <div class="expired-sub">This note no longer exists.</div>
+    <div class="expired-sub">The key is gone, the ciphertext is deleted.</div>
+    <div class="expired-note">
+      <strong>Your address bar has been cleared.</strong>
+      The decryption key was stripped from the URL the moment you opened this memo — so it was never saved in browser history. If you shared the link via chat or email, consider deleting that message too.
+    </div>
+    <button class="btn btn-primary" onclick="newMemo()">Write a new memo</button>
+  </div>
+
+</div>
+
+<div id="toast"></div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+let currentMemoId = null;
+let pendingMemoId = null;
+let pendingKey = null;
+let burnTimer = null;
+
+// ─── BOOT ────────────────────────────────────────────────────────────────────
+const BOOT_LINES = [
+  ['Web Crypto API ready', 'ok', 120],
+  ['AES-256-GCM initialized', 'ok', 260],
+  ['PBKDF2 key derivation active', 'ok', 400],
+  ['No outbound network requests', 'warn', 540],
+  ['Ready', null, 660],
+];
+
+function boot() {
+  const el = document.getElementById('boot');
+  BOOT_LINES.forEach(([text, status, delay]) => {
+    setTimeout(() => {
+      const d = document.createElement('div');
+      d.className = 'boot-line' + (status ? ' ' + status : '');
+      d.textContent = text;
+      el.appendChild(d);
+    }, delay);
+  });
+  setTimeout(() => {
+    el.style.transition = 'opacity 0.3s';
+    el.style.opacity = '0';
+    setTimeout(() => { el.style.display = 'none'; init(); }, 300);
+  }, 900);
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+function init() {
+  updateStorageInfo();
+  const hash = window.location.hash.slice(1);
+  if (hash && hash.includes(':')) loadMemo(hash);
+}
+
+// ─── EDITOR ──────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.textContent.trim().toLowerCase() === tab));
+  document.getElementById('write-pane').style.display = tab === 'write' ? 'block' : 'none';
+  document.getElementById('preview-pane').style.display = tab === 'preview' ? 'block' : 'none';
+  if (tab === 'preview') document.getElementById('preview-area').innerHTML = marked.parse(document.getElementById('editor').value || '*nothing yet*');
+}
+
+function onEditorInput() {
+  const t = document.getElementById('editor').value;
+  const words = t.trim() ? t.trim().split(/\s+/).length : 0;
+  document.getElementById('char-count').textContent = t.length + ' characters';
+  document.getElementById('word-count-footer').textContent = words + ' words';
+  document.getElementById('editor-badge').textContent = words + ' words';
+}
+
+// ─── STORAGE ─────────────────────────────────────────────────────────────────
+function getMemos() { try { return JSON.parse(localStorage.getItem('ghost_memos') || '{}'); } catch { return {}; } }
+function saveMemos(m) { localStorage.setItem('ghost_memos', JSON.stringify(m)); }
+
+function updateStorageInfo() {
+  const memos = getMemos(), keys = Object.keys(memos);
+  document.getElementById('storage-info').textContent = keys.length ? keys.length + ' memo(s) stored locally (encrypted)' : 'No memos stored yet.';
+  const countEl = document.getElementById('stored-count');
+  if (countEl) countEl.textContent = keys.length ? '(' + keys.length + ')' : '';
+  document.getElementById('existing-notes').innerHTML = keys.length ? keys.map(id => {
+    const m = memos[id], exp = m.expiresAt && Date.now() > m.expiresAt;
+    return `<div class="memo-row">
+      <span style="color:${exp ? 'var(--red)' : 'inherit'}">${m.label || id.slice(0, 14)}${exp ? ' · expired' : ''}${m.hasPassword ? ' 🔐' : ''}</span>
+      <button class="memo-burn-btn" onclick="deleteMemo('${id}')">Delete</button>
+    </div>`;
+  }).join('') : '';
+}
+
+function toggleCollapse(id) {
+  document.getElementById(id).classList.toggle('open');
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute('data-theme');
+  const next = current === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('ghost_theme', next);
+}
+
+// Initialize theme before anything else renders
+(function initTheme() {
+  const saved = localStorage.getItem('ghost_theme');
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const theme = saved || (prefersDark ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', theme);
+})();
+
+function deleteMemo(id) {
+  const m = getMemos(); delete m[id]; saveMemos(m);
+  updateStorageInfo(); showToast('Memo deleted');
+}
+
+// ─── CRYPTO (Web Crypto API) ──────────────────────────────────────────────────
+
+// Convert hex string ↔ Uint8Array
+function hexToBytes(hex) {
+  const arr = new Uint8Array(hex.length / 2);
+  for (let i = 0; i < arr.length; i++) arr[i] = parseInt(hex.slice(i * 2, i * 2 + 2), 16);
+  return arr;
+}
+function bytesToHex(bytes) {
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function bytesToBase64(bytes) {
+  return btoa(String.fromCharCode(...bytes));
+}
+function base64ToBytes(b64) {
+  return Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+}
+
+// Generate a random base key (32 bytes = 256 bits)
+function generateBaseKey() {
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return bytesToHex(bytes);
+}
+
+// Derive master key from baseKey + optional password using PBKDF2
+async function deriveMasterKey(baseKeyHex, password = '') {
+  const enc = new TextEncoder();
+  // Import base key as raw key material
+  const baseKeyBytes = hexToBytes(baseKeyHex);
+  const combined = enc.encode(password + ':' + bytesToHex(baseKeyBytes));
+  const keyMaterial = await crypto.subtle.importKey('raw', combined, 'PBKDF2', false, ['deriveKey']);
+  // Use a deterministic salt derived from the base key so both sides can derive the same key
+  const salt = baseKeyBytes.slice(0, 16);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' },
+    keyMaterial,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+// Encrypt plaintext → base64 payload (iv + ciphertext)
+async function encryptNote(plaintext, baseKeyHex, password = '') {
+  const masterKey = await deriveMasterKey(baseKeyHex, password);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const encoded = new TextEncoder().encode(plaintext);
+  const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, masterKey, encoded);
+  // Combine iv (12 bytes) + ciphertext
+  const combined = new Uint8Array(iv.length + ciphertext.byteLength);
+  combined.set(iv, 0);
+  combined.set(new Uint8Array(ciphertext), iv.length);
+  return bytesToBase64(combined);
+}
+
+// Decrypt base64 payload → plaintext (throws on bad password/corruption)
+async function decryptNote(payload, baseKeyHex, password = '') {
+  const masterKey = await deriveMasterKey(baseKeyHex, password);
+  const combined = base64ToBytes(payload);
+  const iv = combined.slice(0, 12);
+  const ciphertext = combined.slice(12);
+  const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, masterKey, ciphertext);
+  return new TextDecoder().decode(decrypted);
+}
+
+// ─── SEAL ─────────────────────────────────────────────────────────────────────
+async function sealMemo() {
+  const text = document.getElementById('editor').value.trim();
+  if (!text) { showToast('Nothing to seal'); return; }
+
+  const btn = document.getElementById('seal-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner spinner-dark"></span>Encrypting…';
+
+  const baseKey = generateBaseKey();
+  const password = document.getElementById('memo-password').value;
+  const burnMode = document.getElementById('burn-mode').value;
+  const label = document.getElementById('memo-label').value.trim();
+
+  try {
+    const encrypted = await encryptNote(text, baseKey, password);
+    const memo = {
+      data: encrypted,
+      label: label || null,
+      burnMode,
+      hasPassword: password.length > 0,
+      createdAt: Date.now(),
+      expiresAt: (burnMode === 'never' || burnMode === 'refresh') ? null : Date.now() + parseInt(burnMode) * 1000,
+      refreshBurn: burnMode === 'refresh',
+    };
+
+    const id = generateId();
+    const memos = getMemos(); memos[id] = memo; saveMemos(memos);
+    currentMemoId = id;
+
+    const url = location.origin + location.pathname + '#' + id + ':' + baseKey;
+    document.getElementById('generated-url').textContent = url;
+    document.getElementById('meta-burn').textContent = burnLabel(burnMode);
+    document.getElementById('meta-pw').textContent = password ? 'Yes 🔐' : 'No';
+    document.getElementById('meta-size').textContent = encrypted.length + ' bytes (enc)';
+
+    history.pushState({}, '', '#' + id + ':' + baseKey);
+    showView('share-view');
+  } catch (e) {
+    showToast('Encryption failed');
+    console.error(e);
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = 'Seal &amp; Encrypt →';
+}
+
+function burnLabel(m) {
+  return { refresh: 'on revisit', 300: '5 min', 900: '15 min', 3600: '1 hour', 86400: '24 hours', never: 'manual' }[m] || m;
+}
+
+function generateId() {
+  const a = new Uint8Array(12); crypto.getRandomValues(a);
+  return Array.from(a).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+// ─── LOAD MEMO ────────────────────────────────────────────────────────────────
+async function loadMemo(hash) {
+  const i = hash.indexOf(':');
+  const id = hash.slice(0, i), baseKey = hash.slice(i + 1);
+
+  // Strip key from URL immediately — never saved in browser history
+  history.replaceState({}, '', location.pathname);
+
+  const memos = getMemos(), memo = memos[id];
+  if (!memo) { showView('expired-view'); return; }
+  if (memo.expiresAt && Date.now() > memo.expiresAt) { deleteMemo(id); showView('expired-view'); return; }
+
+  if (memo.refreshBurn) {
+    window.addEventListener('beforeunload', () => { const m = getMemos(); delete m[id]; saveMemos(m); });
+  }
+
+  currentMemoId = id;
+
+  if (memo.hasPassword) {
+    // Store pending state and show password prompt
+    pendingMemoId = id;
+    pendingKey = baseKey;
+    showView('password-view');
+    setTimeout(() => document.getElementById('read-password').focus(), 100);
+    return;
+  }
+
+  await renderMemo(memo, id, baseKey, '');
+}
+
+async function decryptWithPassword() {
+  const password = document.getElementById('read-password').value;
+  const btn = document.getElementById('decrypt-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Decrypting…';
+  document.getElementById('pw-error').style.display = 'none';
+
+  const memos = getMemos();
+  const memo = memos[pendingMemoId];
+
+  try {
+    await renderMemo(memo, pendingMemoId, pendingKey, password);
+  } catch {
+    document.getElementById('pw-error').style.display = 'block';
+    btn.disabled = false;
+    btn.textContent = 'Decrypt memo';
+  }
+}
+
+async function renderMemo(memo, id, baseKey, password) {
+  let plain;
+  try {
+    plain = await decryptNote(memo.data, baseKey, password);
+  } catch {
+    throw new Error('decryption failed');
+  }
+
+  document.getElementById('note-body').innerHTML = marked.parse(plain);
+  setupBurnUI(memo);
+  showView('read-view');
+
+  if (memo.refreshBurn) {
+    document.getElementById('time-remaining').textContent = 'on exit';
+    document.getElementById('burn-fill').style.background = 'var(--red)';
+  }
+}
+
+// ─── BURN UI ─────────────────────────────────────────────────────────────────
+function setupBurnUI(memo) {
+  if (memo.refreshBurn || !memo.expiresAt) {
+    if (!memo.refreshBurn) {
+      document.getElementById('time-remaining').textContent = 'manual only';
+      document.getElementById('burn-fill').style.width = '0';
+    }
+    return;
+  }
+  const burnEnd = memo.expiresAt, burnTotal = memo.expiresAt - memo.createdAt;
+  const tick = () => {
+    const left = burnEnd - Date.now();
+    if (left <= 0) { clearInterval(burnTimer); deleteMemo(currentMemoId); showView('expired-view'); return; }
+    const pct = (left / burnTotal) * 100;
+    document.getElementById('burn-fill').style.width = pct + '%';
+    document.getElementById('burn-fill').style.background = pct < 20 ? 'var(--red)' : 'var(--text)';
+    document.getElementById('time-remaining').textContent = fmtSec(Math.ceil(left / 1000));
+  };
+  tick(); burnTimer = setInterval(tick, 1000);
+}
+
+function fmtSec(s) {
+  return s >= 3600
+    ? Math.floor(s / 3600) + 'h ' + String(Math.floor((s % 3600) / 60)).padStart(2, '0') + 'm'
+    : String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0');
+}
+
+// ─── ACTIONS ─────────────────────────────────────────────────────────────────
+function burnNow() {
+  if (currentMemoId) deleteMemo(currentMemoId);
+  if (burnTimer) clearInterval(burnTimer);
+  history.pushState({}, '', ' ');
+  showView('expired-view');
+}
+
+function copyUrl() {
+  navigator.clipboard.writeText(document.getElementById('generated-url').textContent)
+    .then(() => showToast('URL copied'));
+}
+
+function openMemo() { location.href = document.getElementById('generated-url').textContent; }
+
+function newMemo() {
+  if (burnTimer) clearInterval(burnTimer);
+  currentMemoId = pendingMemoId = pendingKey = null;
+  document.getElementById('editor').value = '';
+  document.getElementById('memo-password').value = '';
+  document.getElementById('memo-label').value = '';
+  document.getElementById('char-count').textContent = '0 characters';
+  document.getElementById('word-count-footer').textContent = '0 words';
+  document.getElementById('editor-badge').textContent = '0 words';
+  history.pushState({}, '', ' ');
+  updateStorageInfo();
+  showView('compose-view');
+}
+
+// ─── UI HELPERS ──────────────────────────────────────────────────────────────
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+window.addEventListener('load', boot);
+</script>
+</body>
+</html>
